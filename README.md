@@ -230,53 +230,21 @@ node dist/cli.js --help
 npm run smoke
 ```
 
-`npm run lint` checks TSDoc comments with `eslint-plugin-tsdoc` (`tsdoc/syntax`). `npm test` includes rendering tests and a live call against the public API. `npm run smoke` starts the built stdio server, calls `preview_icons`, and writes `docs/contact-sheet.png`. CI runs `npm ci`, then lint, typecheck, test, build, and smoke.
+`npm run lint` checks TSDoc comments with `eslint-plugin-tsdoc` (`tsdoc/syntax`). `npm test` includes rendering tests and a live call against the public API. `npm run smoke` starts the built stdio server, calls `preview_icons`, and writes `docs/contact-sheet.png` unless `CONTACT_SHEET_OUT` is set. It also copies the PNG to `contact-sheet.png` inside `SMOKE_OUT`, or the system temp directory when `SMOKE_OUT` is unset. CI runs `npm ci`, then lint, typecheck, test, build, and smoke.
 
 `prepublishOnly` compiles TypeScript into `dist/` before the package is packed.
 
 ## Releasing
 
-The package on npm is `@sohampatwardhan/iconify-mcp`. Version `0.2.0` is the first version of that scoped package. The old unscoped name `icones-mcp` stays on the registry as a deprecated package.
+`@sohampatwardhan/iconify-mcp` is published only by `.github/workflows/release.yml`, using GitHub OIDC trusted publishing. `0.2.1` was published that way. Do not run `npm publish` from a laptop or an agent session, and do not create an npm token.
 
-Trusted publishing can be attached only after the package exists. Publish `0.2.0` once from a maintainer machine, then add the GitHub Actions publisher, then let tags publish later versions.
-
-```bash
-npm login
-npm ci
-npm publish --access public
-```
-
-Leave `--provenance` off for that local publish. Provenance is added by the GitHub Actions workflow, which has the OIDC token. Do not push a `v0.2.0` tag for this bootstrap. The workflow would try to publish `0.2.0` again.
-
-On npmjs.com, open `@sohampatwardhan/iconify-mcp` → Settings → Trusted publishing (the section is also labeled Trusted Publisher). Choose GitHub Actions and enter:
-
-| Field | Value |
-| --- | --- |
-| Organization or user | `sohampatwardhan` |
-| Repository | `iconify-mcp` |
-| Workflow filename | `release.yml` |
-| Environment name | empty |
-
-The filename is `release.yml` only, not `.github/workflows/release.yml`. Allow direct `npm publish`. A publisher created after 3 September 2026 starts with `npm stage publish` allowed and does not allow `npm publish` until that action is selected. Leave dist-tag management off. The same link can be created with npm CLI 11.15.0 or newer:
-
-```bash
-npm trust github @sohampatwardhan/iconify-mcp \
-  --repo sohampatwardhan/iconify-mcp \
-  --file release.yml \
-  --allow-publish
-```
-
-The first successful publish from that workflow has to happen within two days of saving the publisher, or the configuration expires. Cut the next version for that check:
+Bump the version on `main` after the release commit is there. `npm version` updates `package.json` and `package-lock.json` and creates the matching tag. `src/version.ts` reads the version from `package.json`, so leave that file's version line alone.
 
 ```bash
 npm version patch   # or minor, or major
 git push --follow-tags
 ```
 
-`npm version` writes the version and a `vX.Y.Z` tag. `.github/workflows/release.yml` runs on that tag. It refuses the job when the tag is not `v` plus `package.json` `"version"`, then runs `npm ci`, lint, typecheck, test, build, and smoke, publishes with `npm publish --provenance --access public`, and opens a GitHub Release with generated notes.
+Run those commands from `main`. A tag pushed from a feature branch does not release. Do not move a tag or publish the same version again.
 
-Deprecate the old package name after the scoped package is on the registry:
-
-```bash
-npm deprecate icones-mcp "Renamed to @sohampatwardhan/iconify-mcp"
-```
+The workflow rejects a tag that is not `v` plus the `package.json` version, then runs `npm ci`, lint, typecheck, test, build, and smoke, publishes with `npm publish --provenance --access public`, and opens a GitHub Release with generated notes.

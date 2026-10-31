@@ -2,6 +2,17 @@
 
 Notes for coding agents working in this repository. The server is MIT-licensed. Icon artwork stays under each Iconify collection's own license.
 
+## Rules
+
+These rules bind every agent working in this repository.
+
+1. You MUST NOT publish to npm manually. You MUST NOT run `npm publish` from a local machine or an agent session. Releases MUST go only through `.github/workflows/release.yml`.
+2. You MUST bump versions only with `npm version patch`, `npm version minor`, or `npm version major`. You MUST NOT hand-edit the version in `package.json`, `package-lock.json`, or `src/version.ts`.
+3. You MUST release only by pushing a `v<version>` tag from `main` with `git push --follow-tags`, after the release commit is on `main`. You MUST NOT tag from a feature branch. You MUST NOT re-tag or reuse a version.
+4. You MUST NOT create, commit, print, or use npm tokens or other secrets. Publishing MUST use OIDC trusted publishing only.
+5. Every declaration MUST have TSDoc. `npm run lint`, typecheck, test, build, and smoke MUST pass before you open a pull request.
+6. Agents MUST open pull requests and MUST NOT merge them. Merges need the owner's explicit approval.
+
 ## Overview
 
 `@sohampatwardhan/iconify-mcp` is an unofficial community MCP server for the public [Iconify](https://iconify.design) API at `https://api.iconify.design`. It searches that catalog, returns each collection's license, and sends PNG previews back as MCP image content. Icon pages link to [Icônes](https://icones.js.org), Anthony Fu's browser for the same catalog.
@@ -99,7 +110,7 @@ CONTACT_SHEET_OUT=/tmp/icones-contact-sheet.png npm run smoke
 | `typecheck` | `tsc -p tsconfig.json --noEmit` (includes tests and scripts) |
 | `test` | `vitest run` |
 | `build` | `tsc -p tsconfig.build.json` into `dist/` with declarations |
-| `smoke` | stdio client against `dist/cli.js`, calls `preview_icons`, writes `docs/contact-sheet.png` unless `CONTACT_SHEET_OUT` is set |
+| `smoke` | stdio client against `dist/cli.js`, calls `preview_icons`, writes `docs/contact-sheet.png` unless `CONTACT_SHEET_OUT` is set, and copies the PNG to `SMOKE_OUT` or the system temp directory |
 | `start` | `node dist/cli.js` |
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck, test, build, and smoke on Node 22. Smoke writes to `/tmp` so it does not touch `docs/contact-sheet.png`.
@@ -191,26 +202,20 @@ SSE and `mcp-remote` are not supported by Cloud Agents.
 - Rendering tests decode PNG bytes with `pngjs` and look for expected colors.
 - Behavior changes need a test that fails before the change. Doc-only edits still have to leave `lint`, `typecheck`, `test`, `build`, and `smoke` green.
 - After a change that touches tools, SVG, or raster output, call the built server over stdio and confirm `search_icons`, `get_icon`, and `preview_icons` still return real PNG payloads.
-- Set `CONTACT_SHEET_OUT` when running smoke locally if you are not intentionally refreshing `docs/contact-sheet.png`.
+- Set `CONTACT_SHEET_OUT` when running smoke locally if you are not intentionally refreshing `docs/contact-sheet.png`. The extra copy goes to `SMOKE_OUT` when set, otherwise the system temp directory.
 
 ## Releasing
 
-The npm package is `@sohampatwardhan/iconify-mcp`. Trusted publishing can be attached only after that package exists. The maintainer publishes `0.2.0` once with `npm login` and `npm publish --access public`, without `--provenance` and without pushing a `v0.2.0` tag. Then, on npmjs.com, they open the package Settings → Trusted publishing → GitHub Actions and set the user to `sohampatwardhan`, the repository to `iconify-mcp`, and the workflow filename to `release.yml`. Direct `npm publish` must be allowed. The same link is `npm trust github @sohampatwardhan/iconify-mcp --repo sohampatwardhan/iconify-mcp --file release.yml --allow-publish` on npm 11.15.0 or newer.
+`@sohampatwardhan/iconify-mcp` is published by `.github/workflows/release.yml` with OIDC trusted publishing. `0.2.1` is the current release and was published that way. Agents MUST NOT run `npm publish`.
 
-The first successful run of `.github/workflows/release.yml` has to happen within two days of saving that publisher. That run publishes a new version:
+On `main`, after the release commit is there:
 
 ```bash
 npm version patch   # or minor, or major
 git push --follow-tags
 ```
 
-`npm version` writes `package.json` and a `vX.Y.Z` tag. The workflow rejects the tag unless it is `v` plus the `package.json` version, then runs `npm ci`, lint, typecheck, test, build, and smoke, publishes with `npm publish --provenance --access public` over GitHub OIDC, and opens a GitHub Release with generated notes. No `NPM_TOKEN` is required. A `NODE_AUTH_TOKEN` fallback is commented out in the workflow.
-
-After the scoped package is on the registry, deprecate the old name:
-
-```bash
-npm deprecate icones-mcp "Renamed to @sohampatwardhan/iconify-mcp"
-```
+`npm version` is the only way to change the version. It updates `package.json` and `package-lock.json` and creates the `vX.Y.Z` tag. `src/version.ts` reads that version from `package.json`. The workflow rejects a tag that is not `v` plus the `package.json` version, runs `npm ci`, lint, typecheck, test, build, and smoke, publishes with `npm publish --provenance --access public`, and opens a GitHub Release with generated notes. Push that tag from `main` only. Do not tag a feature branch, and do not move or reuse a tag.
 
 ## Pull requests
 
@@ -218,4 +223,4 @@ npm deprecate icones-mcp "Renamed to @sohampatwardhan/iconify-mcp"
 - Commit messages describe the change in a full sentence.
 - Update `README.md` when a user-facing command, tool, resource, or environment variable changes. `AGENTS.md` follows the code when an agent workflow changes.
 - Do not commit `dist/`, `node_modules/`, personal MCP config, or secrets.
-- CI must pass: lint, typecheck, test, build, smoke. Do not merge a red check.
+- CI must pass: lint, typecheck, test, build, smoke. Open the pull request and leave it for the owner to merge.

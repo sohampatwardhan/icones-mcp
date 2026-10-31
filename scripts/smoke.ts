@@ -8,6 +8,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -63,6 +64,20 @@ interface ToolContent {
 }
 
 /**
+ * Directory for the extra contact-sheet copy.
+ *
+ * @returns `SMOKE_OUT` when that variable is a non-empty path, otherwise
+ * {@link tmpdir}.
+ * @remarks
+ * The copy stays out of `/opt`. Creating `/opt/cursor` fails with `EACCES` on
+ * machines where `/opt` is not writable.
+ */
+function smokeArtifactDir(): string {
+  const configured = process.env.SMOKE_OUT?.trim();
+  return configured ? configured : tmpdir();
+}
+
+/**
  * Runs the smoke check and writes the contact sheet.
  *
  * @returns A promise that resolves after the client is closed.
@@ -70,8 +85,9 @@ interface ToolContent {
  * the tool list changed, `preview_icons` fails, or the PNG does not look like a sheet of icons.
  *
  * @remarks
- * The output path is `CONTACT_SHEET_OUT`, or `docs/contact-sheet.png` under the
- * repository root. A second copy is written to `/opt/cursor/artifacts/contact-sheet.png`.
+ * The sheet checked into the repo is `CONTACT_SHEET_OUT`, or
+ * `docs/contact-sheet.png` under the repository root. A second copy is written
+ * to `contact-sheet.png` inside {@link smokeArtifactDir}.
  */
 async function main(): Promise<void> {
   const cli = join(root, "dist/cli.js");
@@ -136,12 +152,13 @@ async function main(): Promise<void> {
     const out = process.env.CONTACT_SHEET_OUT ?? join(root, "docs/contact-sheet.png");
     await mkdir(dirname(out), { recursive: true });
     await writeFile(out, png);
-    const artifacts = "/opt/cursor/artifacts";
-    await mkdir(artifacts, { recursive: true });
-    await writeFile(join(artifacts, "contact-sheet.png"), png);
+    const artifactDir = smokeArtifactDir();
+    await mkdir(artifactDir, { recursive: true });
+    const artifact = join(artifactDir, "contact-sheet.png");
+    await writeFile(artifact, png);
     const text = result.content?.find((item) => item.type === "text")?.text ?? "";
     process.stderr.write(
-      `contact sheet ${decoded.width}×${decoded.height} (${png.length} bytes) -> ${out}\n${text.split("\n")[0]}\n`,
+      `contact sheet ${decoded.width}×${decoded.height} (${png.length} bytes) -> ${out}\ncopy -> ${artifact}\n${text.split("\n")[0]}\n`,
     );
   } finally {
     await client.close();
