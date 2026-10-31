@@ -1,10 +1,26 @@
 #!/usr/bin/env node
+/**
+ * Command-line entry for `icones-mcp`.
+ *
+ * With no flags the process speaks MCP over stdin and stdout. `--http` listens
+ * for stateless Streamable HTTP instead. Logs go to stderr so they stay off
+ * the JSON-RPC stream.
+ *
+ * @packageDocumentation
+ * @remarks
+ * HTTP mode does not authenticate clients. Bind it to localhost unless another
+ * process is enforcing access.
+ */
+
 import { parseArgs } from "node:util";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { startHttpServer } from "./http.js";
 import { createIconesServer } from "./server.js";
 import { VERSION } from "./version.js";
 
+/**
+ * Usage text printed for `--help` and `-h`.
+ */
 const help = `icones-mcp ${VERSION}
 
 Search Iconify icons (the catalog behind https://icones.js.org) and return PNG previews.
@@ -22,6 +38,23 @@ Environment:
 HTTP mode does not authenticate clients. Keep it on localhost.
 `;
 
+/**
+ * Parses CLI flags and starts either the stdio server or Streamable HTTP.
+ *
+ * @returns A promise that stays pending while the stdio server is connected.
+ * HTTP mode resolves once the port is listening; the process then stays alive
+ * with the open server.
+ * @throws Error when `--port` is present but not an integer from 1 through 65535.
+ * Listen failures and MCP connection failures reject the same promise. The
+ * process-level catch sets a non-zero exit code.
+ *
+ * @example
+ *
+ * ```sh
+ * node dist/cli.js
+ * node dist/cli.js --http --port 3333
+ * ```
+ */
 async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {

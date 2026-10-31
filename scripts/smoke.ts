@@ -1,3 +1,11 @@
+/**
+ * Stdio smoke test for the built CLI.
+ *
+ * Connects to `dist/cli.js`, checks the tool list, calls `preview_icons` with
+ * the twelve Lucide icons from the README, and writes the PNG. The script
+ * exits non-zero when the sheet is missing, too small, or has no dark strokes.
+ */
+
 import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -6,8 +14,14 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { PNG } from "pngjs";
 
+/**
+ * Repository root, one directory above this script.
+ */
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+/**
+ * Lucide ids drawn by the README contact sheet.
+ */
 const ICONS = [
   "lucide:house",
   "lucide:search",
@@ -23,13 +37,42 @@ const ICONS = [
   "lucide:mail",
 ];
 
+/**
+ * One MCP content block returned by `callTool` in this script.
+ */
 interface ToolContent {
+  /**
+   * MCP content type, such as `text` or `image`.
+   */
   type: string;
+
+  /**
+   * Text payload when `type` is `text`.
+   */
   text?: string;
+
+  /**
+   * Base64 image payload when `type` is `image`.
+   */
   data?: string;
+
+  /**
+   * MIME type of an image block.
+   */
   mimeType?: string;
 }
 
+/**
+ * Runs the smoke check and writes the contact sheet.
+ *
+ * @returns A promise that resolves after the client is closed.
+ * @throws Error when the build is missing, the tool list changed, `preview_icons`
+ * fails, or the PNG does not look like a sheet of icons.
+ *
+ * @remarks
+ * The output path is `CONTACT_SHEET_OUT`, or `docs/contact-sheet.png` under the
+ * repository root. A second copy is written to `/opt/cursor/artifacts/contact-sheet.png`.
+ */
 async function main(): Promise<void> {
   const cli = join(root, "dist/cli.js");
   if (!existsSync(cli)) {

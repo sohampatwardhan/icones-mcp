@@ -1,3 +1,10 @@
+/**
+ * MCP resources for collection metadata and single-icon SVG, PNG, and JSON.
+ *
+ * PNG resources are 128 pixels on white. SVG resources keep `currentColor`.
+ * JSON resources include the same snippets as `get_icon`.
+ */
+
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { IconifyClient } from "../iconify/client.js";
 import { IconifyError } from "../iconify/errors.js";
@@ -14,8 +21,28 @@ import {
 import { buildSvg, iconSvgUrl, licenseComment } from "../icons/svg.js";
 import { rasterizeIcon } from "../render/png.js";
 
+/**
+ * Edge length, in pixels, of `icones://icon/...png` resources.
+ */
 const RESOURCE_PNG_SIZE = 128;
 
+/**
+ * Registers the Icônes resources on an MCP server.
+ *
+ * - `icones://collections` is the collection list with licenses.
+ * - `icones://collection/{prefix}` is one collection, including up to 200 icon names.
+ * - `icones://icon/{prefix}/{name}.svg` is the SVG.
+ * - `icones://icon/{prefix}/{name}.png` is a 128px PNG on white.
+ * - `icones://icon/{prefix}/{name}.json` is metadata and snippets. A missing suffix is treated as JSON.
+ *
+ * @param server - MCP server that will own the resources.
+ * @param client - Iconify client shared with the tools.
+ *
+ * @remarks
+ * Hidden collections are omitted from the list. Icon artwork keeps each
+ * collection's own license. A resource suffix other than `svg`, `png`, or
+ * `json` throws {@link IconifyError}.
+ */
 export function registerIconesResources(server: McpServer, client: IconifyClient): void {
   server.registerResource(
     "collections",

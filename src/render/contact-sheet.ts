@@ -1,37 +1,148 @@
+/**
+ * Labeled contact sheets drawn as one SVG and rasterized to PNG.
+ *
+ * Labels use the Inter family. The rasterizer loads the bundled face and does
+ * not look for system fonts.
+ */
+
 import type { ResolvedIcon } from "../iconify/types.js";
 import { DEFAULT_INK, DEFAULT_SHEET } from "../icons/color.js";
 import { buildSvg, escapeXml, extractSvg } from "../icons/svg.js";
 import { rasterizeSvg } from "./png.js";
 
+/**
+ * One cell on a contact sheet.
+ */
 export interface SheetIcon {
+  /**
+   * Icon to draw.
+   */
   icon: ResolvedIcon;
+
+  /**
+   * Caption under the glyph. Truncated to 28 characters when labels are shown.
+   */
   label: string;
 }
 
+/**
+ * Layout inputs for {@link renderContactSheet}.
+ */
 export interface ContactSheetOptions {
+  /**
+   * Icons in row-major order. At least one is required.
+   */
   icons: SheetIcon[];
+
+  /**
+   * Icon edge length in pixels, before the cell padding.
+   *
+   * @defaultValue 64
+   */
   iconSize?: number;
+
+  /**
+   * Number of columns. Values below 1 are raised to 1. The count is also
+   * capped at the number of icons.
+   *
+   * @defaultValue the smaller of 4 and the icon count
+   */
   columns?: number;
+
+  /**
+   * Ink passed to {@link buildSvg} for every glyph.
+   *
+   * @defaultValue {@link DEFAULT_INK} (`#1c1917`)
+   */
   color?: string;
+
+  /**
+   * Page background.
+   *
+   * @defaultValue {@link DEFAULT_SHEET} (`#f7f6f3`)
+   */
   background?: string;
+
+  /**
+   * Card fill behind each icon.
+   *
+   * @defaultValue `#ffffff`
+   */
   card?: string;
+
+  /**
+   * Caption color.
+   *
+   * @defaultValue `#57534e`
+   */
   labelColor?: string;
+
+  /**
+   * Optional heading. Adds a text line and extra header space when set.
+   */
   title?: string;
+
+  /**
+   * Optional line under the title, typically a license.
+   */
   subtitle?: string;
+
+  /**
+   * Whether to draw captions.
+   *
+   * @defaultValue true
+   */
   showLabels?: boolean;
 }
 
+/**
+ * Pixel geometry of a rendered sheet.
+ */
 export interface SheetLayout {
+  /**
+   * Image width in pixels.
+   */
   width: number;
+
+  /**
+   * Image height in pixels.
+   */
   height: number;
+
+  /**
+   * Column count actually used.
+   */
   columns: number;
+
+  /**
+   * Row count.
+   */
   rows: number;
+
+  /**
+   * Icon edge length in pixels.
+   */
   iconSize: number;
 }
 
+/**
+ * Page padding, in pixels.
+ */
 const PAD = 24;
+
+/**
+ * Gap between cards, in pixels.
+ */
 const GAP = 12;
 
+/**
+ * Builds a contact sheet and rasterizes it.
+ *
+ * @param options - Icons and layout overrides.
+ * @returns The PNG, the SVG that was rasterized, and the layout numbers.
+ * @throws Error when `options.icons` is empty.
+ * @throws {@link IconifyError} when rasterization fails. See {@link rasterizeSvg}.
+ */
 export function renderContactSheet(options: ContactSheetOptions): {
   png: Buffer;
   svg: string;
@@ -45,6 +156,17 @@ export function renderContactSheet(options: ContactSheetOptions): {
   return { png, svg: built.svg, layout: built.layout };
 }
 
+/**
+ * Composes the contact-sheet SVG without rasterizing it.
+ *
+ * Cards are rounded rectangles. Each icon is scaled uniformly to fit
+ * `iconSize` and centered in its card. Captions are centered under the glyph
+ * in 12px Inter.
+ *
+ * @param options - Icons and layout overrides.
+ * @returns The SVG document and the layout numbers. The SVG's width and height
+ * attributes match `layout`.
+ */
 export function buildSheetSvg(options: ContactSheetOptions): { svg: string; layout: SheetLayout } {
   const iconSize = options.iconSize ?? 64;
   const showLabels = options.showLabels !== false;
@@ -114,11 +236,24 @@ export function buildSheetSvg(options: ContactSheetOptions): { svg: string; layo
   };
 }
 
+/**
+ * Shortens a caption that would widen the card.
+ *
+ * @param value - Caption text.
+ * @param max - Maximum length, including the ellipsis.
+ * @returns `value` unchanged when it fits, otherwise the prefix plus `...`.
+ */
 function truncate(value: string, max: number): string {
   if (value.length <= max) return value;
   return `${value.slice(0, max - 3)}...`;
 }
 
+/**
+ * Formats a transform number without trailing zeros.
+ *
+ * @param value - A coordinate or scale.
+ * @returns The number rounded to 3 decimal places, then shortened by `Number`.
+ */
 function num(value: number): string {
   return Number(value.toFixed(3)).toString();
 }
