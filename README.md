@@ -1,4 +1,4 @@
-# icones-mcp
+# Iconify MCP
 
 MCP server for [Icônes](https://icones.js.org), Anthony Fu's icon explorer. It searches the [Iconify](https://iconify.design) catalog behind Icônes, returns each collection's license, and sends PNG previews back as MCP image content so a model can see the icons.
 
