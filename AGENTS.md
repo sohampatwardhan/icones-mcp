@@ -4,9 +4,9 @@ Notes for coding agents working in this repository. The server is MIT-licensed. 
 
 ## Overview
 
-`icones-mcp` is an MCP server for [Icônes](https://icones.js.org). Icônes is a front end over the public [Iconify](https://iconify.design) API at `https://api.iconify.design`. The server searches that catalog, returns each collection's license, and sends PNG previews back as MCP image content.
+`@sohampatwardhan/iconify-mcp` is an unofficial community MCP server for the public [Iconify](https://iconify.design) API at `https://api.iconify.design`. It searches that catalog, returns each collection's license, and sends PNG previews back as MCP image content. Icon pages link to [Icônes](https://icones.js.org), Anthony Fu's browser for the same catalog.
 
-Node.js 20 or newer. The package is ESM (`"type": "module"`). The published bin is `icones-mcp` (`dist/cli.js`). Logs go to stderr so they stay off the JSON-RPC stream.
+Node.js 20 or newer. The package is ESM (`"type": "module"`). Version `0.2.0` is the first publish of the scoped name. The published bin is `iconify-mcp` (`dist/cli.js`). `icones-mcp` is a compatibility alias for the same file. The MCP server name is `iconify-mcp`. Logs go to stderr so they stay off the JSON-RPC stream.
 
 ## Architecture
 
@@ -51,11 +51,13 @@ The client keeps collection metadata, search pages, and icon bodies in memory (`
 
 | URI | Body |
 | --- | --- |
-| `icones://collections` | Collection list with licenses. Hidden collections are omitted. |
-| `icones://collection/{prefix}` | One collection, including up to 200 icon names. |
-| `icones://icon/{prefix}/{name}.svg` | SVG. `currentColor` is left in place. |
-| `icones://icon/{prefix}/{name}.png` | 128px PNG on white, ink `#1c1917`. |
-| `icones://icon/{prefix}/{name}.json` | Metadata and snippets. A missing suffix is treated as JSON. |
+| `iconify://collections` | Collection list with licenses. Hidden collections are omitted. |
+| `iconify://collection/{prefix}` | One collection, including up to 200 icon names. |
+| `iconify://icon/{prefix}/{name}.svg` | SVG. `currentColor` is left in place. |
+| `iconify://icon/{prefix}/{name}.png` | 128px PNG on white, ink `#1c1917`. |
+| `iconify://icon/{prefix}/{name}.json` | Metadata and snippets. A missing suffix is treated as JSON. |
+
+`iconify://` is the scheme to use. The same templates are also registered on `icones://`, with resource names prefixed `icones-`, so older URIs still resolve.
 
 ### Transports
 
@@ -139,7 +141,7 @@ Put this in the project `.cursor/mcp.json` or the personal `~/.cursor/mcp.json`,
 ```json
 {
   "mcpServers": {
-    "icones": {
+    "iconify": {
       "command": "node",
       "args": ["${workspaceFolder}/dist/cli.js"]
     }
@@ -147,7 +149,7 @@ Put this in the project `.cursor/mcp.json` or the personal `~/.cursor/mcp.json`,
 }
 ```
 
-Do not commit a personal MCP config. `~/.cursor/mcp.json` stays on the machine. A project `.cursor/mcp.json` is shared config; add one only when the change is meant for every checkout, and do not put secrets in it. This repo does not ship one. The published install (`npx -y icones-mcp`) is documented in the README and is a different command from the local `dist/cli.js` build.
+Do not commit a personal MCP config. `~/.cursor/mcp.json` stays on the machine. A project `.cursor/mcp.json` is shared config; add one only when the change is meant for every checkout, and do not put secrets in it. This repo does not ship one. The published install (`npx -y @sohampatwardhan/iconify-mcp@latest`) is documented in the README and is a different command from the local `dist/cli.js` build.
 
 ### Cloud agents
 
@@ -190,6 +192,25 @@ SSE and `mcp-remote` are not supported by Cloud Agents.
 - Behavior changes need a test that fails before the change. Doc-only edits still have to leave `lint`, `typecheck`, `test`, `build`, and `smoke` green.
 - After a change that touches tools, SVG, or raster output, call the built server over stdio and confirm `search_icons`, `get_icon`, and `preview_icons` still return real PNG payloads.
 - Set `CONTACT_SHEET_OUT` when running smoke locally if you are not intentionally refreshing `docs/contact-sheet.png`.
+
+## Releasing
+
+The npm package is `@sohampatwardhan/iconify-mcp`. Trusted publishing can be attached only after that package exists. The maintainer publishes `0.2.0` once with `npm login` and `npm publish --access public`, without `--provenance` and without pushing a `v0.2.0` tag. Then, on npmjs.com, they open the package Settings → Trusted publishing → GitHub Actions and set the user to `sohampatwardhan`, the repository to `iconify-mcp`, and the workflow filename to `release.yml`. Direct `npm publish` must be allowed. The same link is `npm trust github @sohampatwardhan/iconify-mcp --repo sohampatwardhan/iconify-mcp --file release.yml --allow-publish` on npm 11.15.0 or newer.
+
+The first successful run of `.github/workflows/release.yml` has to happen within two days of saving that publisher. That run publishes a new version:
+
+```bash
+npm version patch   # or minor, or major
+git push --follow-tags
+```
+
+`npm version` writes `package.json` and a `vX.Y.Z` tag. The workflow rejects the tag unless it is `v` plus the `package.json` version, then runs `npm ci`, lint, typecheck, test, build, and smoke, publishes with `npm publish --provenance --access public` over GitHub OIDC, and opens a GitHub Release with generated notes. No `NPM_TOKEN` is required. A `NODE_AUTH_TOKEN` fallback is commented out in the workflow.
+
+After the scoped package is on the registry, deprecate the old name:
+
+```bash
+npm deprecate icones-mcp "Renamed to @sohampatwardhan/iconify-mcp"
+```
 
 ## Pull requests
 

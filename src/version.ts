@@ -21,9 +21,9 @@ export const VERSION = (require("../package.json") as { version: string }).versi
 /**
  * `User-Agent` header sent on Iconify API requests.
  */
-export const USER_AGENT = `icones-mcp/${VERSION} (+https://github.com/sohampatwardhan/icones-mcp)`;
+export const USER_AGENT = `iconify-mcp/${VERSION} (+https://github.com/sohampatwardhan/iconify-mcp)`;
 
 /**
  * Server name reported to MCP clients during initialization.
  */
-export const SERVER_NAME = "icones-mcp";
+export const SERVER_NAME = "iconify-mcp";

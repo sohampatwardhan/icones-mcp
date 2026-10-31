@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Command-line entry for `icones-mcp`.
+ * Command-line entry for `iconify-mcp`.
  *
  * With no flags the process speaks MCP over stdin and stdout. `--http` listens
  * for stateless Streamable HTTP instead. Logs go to stderr so they stay off
- * the JSON-RPC stream.
+ * the JSON-RPC stream. `icones-mcp` is a compatibility alias for the same program.
  *
  * @packageDocumentation
  * @remarks
@@ -21,14 +21,17 @@ import { VERSION } from "./version.js";
 /**
  * Usage text printed for `--help` and `-h`.
  */
-const help = `icones-mcp ${VERSION}
+const help = `iconify-mcp ${VERSION}
 
-Search Iconify icons (the catalog behind https://icones.js.org) and return PNG previews.
+Unofficial community MCP server for the Iconify catalog.
+Icon pages link to Icônes (https://icones.js.org).
 
 Usage:
-  icones-mcp                 Start the stdio MCP server
-  icones-mcp --http          Start Streamable HTTP on 127.0.0.1:3333
-  icones-mcp --http --port 8787 --host 127.0.0.1
+  iconify-mcp                 Start the stdio MCP server
+  iconify-mcp --http          Start Streamable HTTP on 127.0.0.1:3333
+  iconify-mcp --http --port 8787 --host 127.0.0.1
+
+icones-mcp is a compatibility alias for the same program.
 
 Environment:
   ICONIFY_API_URL            Iconify API base URL (default https://api.iconify.design)
@@ -77,14 +80,14 @@ async function main(): Promise<void> {
       throw new Error(`Port "${values.port}" is not valid.`);
     }
     const running = await startHttpServer({ host: values.host ?? "127.0.0.1", port });
-    console.error(`icones-mcp listening on ${running.url}`);
+    console.error(`iconify-mcp listening on ${running.url}`);
     return;
   }
 
   const server = createIconesServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("icones-mcp running on stdio");
+  console.error("iconify-mcp running on stdio");
 }
 
 main().catch((error: unknown) => {

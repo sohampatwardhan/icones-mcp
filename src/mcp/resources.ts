@@ -22,18 +22,24 @@ import { buildSvg, iconSvgUrl, licenseComment } from "../icons/svg.js";
 import { rasterizeIcon } from "../render/png.js";
 
 /**
- * Edge length, in pixels, of `icones://icon/...png` resources.
+ * Edge length, in pixels, of icon PNG resources on `iconify://` and `icones://`.
  */
 const RESOURCE_PNG_SIZE = 128;
 
 /**
- * Registers the Icônes resources on an MCP server.
+ * URI schemes that expose the same collection and icon resources.
  *
- * - `icones://collections` is the collection list with licenses.
- * - `icones://collection/{prefix}` is one collection, including up to 200 icon names.
- * - `icones://icon/{prefix}/{name}.svg` is the SVG.
- * - `icones://icon/{prefix}/{name}.png` is a 128px PNG on white.
- * - `icones://icon/{prefix}/{name}.json` is metadata and snippets. A missing suffix is treated as JSON.
+ * `iconify` is the scheme clients should use. `icones` stays registered so
+ * older resource URIs keep resolving to the same bodies.
+ */
+const RESOURCE_SCHEMES = ["iconify", "icones"] as const;
+
+/**
+ * Registers Iconify resources on an MCP server for every entry of {@link RESOURCE_SCHEMES}.
+ *
+ * Each scheme exposes `collections`, `collection/{prefix}`, and `icon/{prefix}/{name}`
+ * with a `.svg`, `.png`, or `.json` suffix. A missing suffix is treated as JSON.
+ * PNG resources are 128 pixels on white. The collection payload includes up to 200 icon names.
  *
  * @param server - MCP server that will own the resources.
  * @param client - Iconify client shared with the tools.
@@ -41,15 +47,46 @@ const RESOURCE_PNG_SIZE = 128;
  * @remarks
  * Hidden collections are omitted from the list. Icon artwork keeps each
  * collection's own license. A resource suffix other than `svg`, `png`, or
- * `json` throws {@link IconifyError}.
+ * `json` throws {@link IconifyError}. `iconify://` resource names are
+ * `collections`, `collection`, and `icon`. `icones://` uses those names with
+ * an `icones-` prefix so both templates can be registered together.
  */
 export function registerIconesResources(server: McpServer, client: IconifyClient): void {
+  for (const scheme of RESOURCE_SCHEMES) {
+    registerScheme(server, client, scheme);
+  }
+}
+
+/**
+ * Builds the MCP resource name for one scheme.
+ *
+ * @param scheme - `iconify` or `icones`.
+ * @param base - Shared name: `collections`, `collection`, or `icon`.
+ * @returns `base` for `iconify`, and `icones-` plus `base` for the compatibility scheme.
+ */
+function resourceName(scheme: (typeof RESOURCE_SCHEMES)[number], base: string): string {
+  return scheme === "iconify" ? base : `icones-${base}`;
+}
+
+/**
+ * Registers the collection list, one collection, and one icon for a single URI scheme.
+ *
+ * @param server - MCP server that will own the resources.
+ * @param client - Iconify client shared with the tools.
+ * @param scheme - `iconify` or `icones`. Templates and example URIs use this scheme.
+ */
+function registerScheme(
+  server: McpServer,
+  client: IconifyClient,
+  scheme: (typeof RESOURCE_SCHEMES)[number],
+): void {
+  const iconExample = `${scheme}://icon/lucide/house.svg`;
   server.registerResource(
-    "collections",
-    "icones://collections",
+    resourceName(scheme, "collections"),
+    `${scheme}://collections`,
     {
       description:
-        "Iconify collections with license, author, and icon counts. Icon artwork is licensed by each collection, not by icones-mcp.",
+        "Iconify collections with license, author, and icon counts. Icon artwork is licensed by each collection, not by this server. iconify:// is the primary scheme. icones:// is the same catalog.",
       mimeType: "application/json",
     },
     async (uri) => {
@@ -71,11 +108,10 @@ export function registerIconesResources(server: McpServer, client: IconifyClient
   );
 
   server.registerResource(
-    "collection",
-    new ResourceTemplate("icones://collection/{prefix}", { list: undefined }),
+    resourceName(scheme, "collection"),
+    new ResourceTemplate(`${scheme}://collection/{prefix}`, { list: undefined }),
     {
-      description:
-        "One Iconify collection: license, categories, and up to 200 icon names. Read icones://icon/{prefix}/{name}.svg for artwork.",
+      description: `One Iconify collection: license, categories, and up to 200 icon names. Read ${scheme}://icon/{prefix}/{name}.svg for artwork.`,
       mimeType: "application/json",
     },
     async (uri, variables) => {
@@ -108,11 +144,10 @@ export function registerIconesResources(server: McpServer, client: IconifyClient
   );
 
   server.registerResource(
-    "icon",
-    new ResourceTemplate("icones://icon/{prefix}/{icon}", { list: undefined }),
+    resourceName(scheme, "icon"),
+    new ResourceTemplate(`${scheme}://icon/{prefix}/{icon}`, { list: undefined }),
     {
-      description:
-        "One icon. Use a .svg, .png, or .json suffix, for example icones://icon/lucide/house.svg. PNG resources are 128px on white.",
+      description: `One icon. Use a .svg, .png, or .json suffix, for example ${iconExample}. PNG resources are 128px on white.`,
       mimeType: "application/json",
     },
     async (uri, variables) => {
