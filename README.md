@@ -216,6 +216,7 @@ The public API is a shared service. Point `ICONIFY_API_URL` at your own [Iconify
 
 ```bash
 npm install
+npm run lint
 npm test
 npm run typecheck
 npm run build
@@ -223,7 +224,7 @@ node dist/cli.js --help
 npm run smoke
 ```
 
-`npm test` includes rendering tests and a live call against the public API. `npm run smoke` starts the built stdio server, calls `preview_icons`, and writes `docs/contact-sheet.png`.
+`npm run lint` checks TSDoc comments with `eslint-plugin-tsdoc` (`tsdoc/syntax`). `npm test` includes rendering tests and a live call against the public API. `npm run smoke` starts the built stdio server, calls `preview_icons`, and writes `docs/contact-sheet.png`. CI runs `npm ci`, then lint, typecheck, test, build, and smoke.
 
 ```bash
 npm publish

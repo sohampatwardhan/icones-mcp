@@ -1,3 +1,11 @@
+/**
+ * MCP tools for browsing Iconify collections and returning PNG previews.
+ *
+ * `search_icons` and `get_collection` include a contact sheet unless the
+ * caller passes `preview: false`. Snippet SVGs keep `currentColor` unless
+ * `color` is set. PNGs default to `#1c1917` on white.
+ */
+
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { IconifyClient } from "../iconify/client.js";
@@ -20,6 +28,9 @@ import { rasterizeIcon } from "../render/png.js";
 import { loadInfos, renderIconSheet } from "./preview.js";
 import { asToolError, toolText } from "./result.js";
 
+/**
+ * Hints advertised on every tool. The server only reads public icon data.
+ */
 const annotations = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -27,13 +38,31 @@ const annotations = {
   openWorldHint: true,
 } as const;
 
+/**
+ * Shared color argument. Omission leaves snippet SVGs on `currentColor` and
+ * paints PNG ink with the default dark color.
+ */
 const colorSchema = z
   .string()
   .optional()
   .describe("Hex, CSS color name, or rgb()/rgba(). Omit to keep snippet SVGs on currentColor. PNGs use #1c1917 when omitted.");
 
+/**
+ * Maximum icons drawn on one `preview_icons` sheet.
+ */
 const PREVIEW_CAP = 24;
 
+/**
+ * Registers `list_collections`, `get_collection`, `search_icons`, `get_icon`,
+ * and `preview_icons`.
+ *
+ * Each handler catches failures and returns them with {@link asToolError}.
+ * Iconify validation errors stay in the tool result. Unexpected errors are
+ * also logged to stderr.
+ *
+ * @param server - MCP server that will own the tools.
+ * @param client - Iconify client shared with the resources.
+ */
 export function registerIconesTools(server: McpServer, client: IconifyClient): void {
   server.registerTool(
     "list_collections",
@@ -183,6 +212,14 @@ export function registerIconesTools(server: McpServer, client: IconifyClient): v
   );
 }
 
+/**
+ * Lists collections, hiding ones Iconify marked hidden.
+ *
+ * @param client - Iconify client.
+ * @param args - Optional text, prefix, category, and page size. `limit` defaults to 40.
+ * @returns A text result whose JSON is the filtered page. No image is attached.
+ * @throws {@link IconifyError} when the prefix is invalid or the collections request fails.
+ */
 async function listCollections(
   client: IconifyClient,
   args: { query?: string; prefix?: string; category?: string; limit?: number },
@@ -205,6 +242,17 @@ async function listCollections(
   );
 }
 
+/**
+ * Returns one collection page and, by default, a sheet of its sample icons.
+ *
+ * @param client - Iconify client.
+ * @param args - Prefix, optional category, page window, and preview flag.
+ * `offset` defaults to 0, `limit` to 80, and `preview` to true. The sheet uses
+ * up to 12 samples at 56 pixels.
+ * @returns Text plus an optional PNG.
+ * @throws {@link IconifyError} when the prefix is invalid, the collection is
+ * missing, or `category` does not match a category title or `uncategorized`.
+ */
 async function getCollection(
   client: IconifyClient,
   args: { prefix: string; category?: string; offset?: number; limit?: number; preview?: boolean },
@@ -263,6 +311,16 @@ async function getCollection(
   return toolText(summaryLine, payload, images);
 }
 
+/**
+ * Searches icons and, by default, attaches a contact sheet of the page.
+ *
+ * @param client - Iconify client.
+ * @param args - Query and optional prefix, prefixes, category, page, and sheet options.
+ * `limit` defaults to 12 and the sheet icon size defaults to 56.
+ * @returns Text plus an optional PNG. `hasMore` is true when the API page was
+ * longer than the requested limit or came back full.
+ * @throws {@link IconifyError} when a prefix or color is invalid or the search fails.
+ */
 async function searchIcons(
   client: IconifyClient,
   args: {
@@ -339,6 +397,19 @@ async function searchIcons(
   );
 }
 
+/**
+ * Returns one icon's metadata, snippets, and PNG.
+ *
+ * @param client - Iconify client.
+ * @param args - Icon id and optional size, color, background, snippet formats,
+ * image flag, and alias flag. `size` defaults to 128, `background` to
+ * `#ffffff`, and both the image and the full snippet list are included unless
+ * disabled. `aliases` defaults to false because it loads the whole collection.
+ * @returns Text plus an optional PNG. Palette icons note that `color` may not
+ * recolor them.
+ * @throws {@link IconifyError} when the id or color is invalid, or Iconify has
+ * no such icon.
+ */
 async function getIcon(
   client: IconifyClient,
   args: {
@@ -427,6 +498,17 @@ async function getIcon(
   );
 }
 
+/**
+ * Renders a labeled sheet for explicit ids or for the top search matches.
+ *
+ * @param client - Iconify client.
+ * @param args - Either `icons` or `query`, plus layout options. `size` defaults
+ * to 64 and labels default to on. A transparent background is rejected so the
+ * captions stay readable.
+ * @returns Text describing the sheet and one PNG.
+ * @throws {@link IconifyError} when neither ids nor a query are provided, the
+ * background is transparent, none of the icons exist, or a search matches nothing.
+ */
 async function previewIcons(
   client: IconifyClient,
   args: {
@@ -490,6 +572,17 @@ async function previewIcons(
   );
 }
 
+/**
+ * Chooses the icon ids a preview will draw.
+ *
+ * @param client - Iconify client, used only when `args.icons` is empty.
+ * @param args - Explicit ids, or a search query with an optional prefix and limit.
+ * Explicit ids win. The search limit defaults to 12 and is capped by {@link PREVIEW_CAP}
+ * through the tool schema.
+ * @returns Canonical ids and the query when the ids came from search.
+ * @throws {@link IconifyError} when no ids and no query were passed, an id is
+ * malformed, or the search returns nothing.
+ */
 async function iconIdsForPreview(
   client: IconifyClient,
   args: { icons?: string[]; query?: string; prefix?: string; limit?: number },
@@ -511,6 +604,15 @@ async function iconIdsForPreview(
   return { ids, query };
 }
 
+/**
+ * Selects the icon names for one collection page.
+ *
+ * @param collection - Collection payload.
+ * @param category - Category title, `uncategorized`, or `undefined` for every visible name.
+ * @returns Icon names in that slice.
+ * @throws {@link IconifyError} with code `not_found` when `category` matches neither
+ * `uncategorized` nor a category title. The error lists up to 12 category names.
+ */
 function iconNames(collection: IconifyCollection, category: string | undefined): string[] {
   if (!category) return visibleIconNames(collection);
   if (category.toLowerCase() === "uncategorized") return collection.uncategorized ?? [];
@@ -527,6 +629,14 @@ function iconNames(collection: IconifyCollection, category: string | undefined):
   return match[1];
 }
 
+/**
+ * Merges the singular and plural prefix filters into a unique list.
+ *
+ * @param prefix - Optional single prefix, placed first.
+ * @param prefixes - Optional additional prefixes.
+ * @returns Trimmed, validated prefixes with duplicates removed.
+ * @throws {@link IconifyError} when any prefix fails {@link assertPrefix}.
+ */
 function normalizePrefixes(prefix: string | undefined, prefixes: string[] | undefined): string[] {
   const values = [...(prefixes ?? [])];
   if (prefix) values.unshift(prefix);

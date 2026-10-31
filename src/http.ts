@@ -1,21 +1,82 @@
+/**
+ * Stateless Streamable HTTP transport for the Icônes MCP server.
+ *
+ * @remarks
+ * Each MCP request builds a fresh server and transport. There is no session
+ * store and no authentication. A single Iconify client is reused across
+ * requests so the memory cache and request spacing stay shared.
+ */
+
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { clientFromEnv, createIconesServer, type IconesServerOptions } from "./server.js";
 
+/**
+ * Bind address and {@link createIconesServer} options for {@link startHttpServer}.
+ */
 export interface HttpServerOptions extends IconesServerOptions {
+  /**
+   * Interface to bind.
+   *
+   * @defaultValue `"127.0.0.1"`
+   */
   host?: string;
+
+  /**
+   * TCP port to bind. `0` asks the operating system for an ephemeral port.
+   *
+   * @defaultValue 3333
+   */
   port?: number;
 }
 
+/**
+ * A listening HTTP server and the URL of its MCP endpoint.
+ */
 export interface RunningHttpServer {
+  /**
+   * MCP endpoint, for example `http://127.0.0.1:3333/mcp`.
+   */
   url: string;
+
+  /**
+   * Port the server actually bound. This can differ from the requested port
+   * when the request was `0`.
+   */
   port: number;
+
+  /**
+   * Stops accepting connections and closes the underlying Node server.
+   *
+   * @returns A promise that resolves when the server has closed.
+   * @throws Error when Node reports an error while closing.
+   */
   close: () => Promise<void>;
 }
 
 /**
- * Stateless Streamable HTTP. Each request gets a fresh server and transport.
- * There is no authentication; bind to localhost unless you add your own.
+ * Starts a stateless Streamable HTTP server.
+ *
+ * `POST /mcp` handles MCP JSON-RPC. `GET /health` returns the text `ok`.
+ * Any other path responds with 404. `OPTIONS` returns 204 for CORS preflight.
+ * Uncaught request errors are written as JSON-RPC internal errors and logged
+ * to stderr.
+ *
+ * @param options - Bind address, port, and server construction options.
+ * @returns The bound URL, port, and a `close` function.
+ * @throws Error when the requested port cannot be bound.
+ *
+ * @example
+ *
+ * ```ts
+ * const running = await startHttpServer({ host: "127.0.0.1", port: 3333 });
+ * console.log(running.url);
+ * await running.close();
+ * ```
+ *
+ * @remarks
+ * There is no authentication. Bind to localhost unless a reverse proxy adds
+ * its own access control. CORS allows any origin.
  */
 export function startHttpServer(options: HttpServerOptions = {}): Promise<RunningHttpServer> {
   const host = options.host ?? "127.0.0.1";
@@ -55,6 +116,17 @@ export function startHttpServer(options: HttpServerOptions = {}): Promise<Runnin
   });
 }
 
+/**
+ * Routes one HTTP request to the health check, CORS preflight, or MCP transport.
+ *
+ * @param req - Incoming Node request.
+ * @param res - Response to write.
+ * @param options - Server options, including the shared Iconify client.
+ * @returns A promise that settles after a short-circuit status is written or
+ * the MCP transport has accepted the request.
+ * @throws Error when a POST body is not valid JSON. The caller maps that to a
+ * JSON-RPC error response.
+ */
 async function handleHttp(
   req: IncomingMessage,
   res: ServerResponse,
@@ -92,6 +164,13 @@ async function handleHttp(
   await transport.handleRequest(req, res, body);
 }
 
+/**
+ * Reads and parses a JSON request body.
+ *
+ * @param req - Incoming request whose body should be consumed.
+ * @returns The parsed JSON value, or `undefined` when the body is empty.
+ * @throws Error when the body is non-empty and is not valid JSON.
+ */
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
