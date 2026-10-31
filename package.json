@@ -1,0 +1,71 @@
+{
+  "name": "icones-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Icônes: search, browse, and see Iconify icons",
+  "type": "module",
+  "license": "MIT",
+  "author": "Soham Patwardhan",
+  "homepage": "https://github.com/sohampatwardhan/icones-mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sohampatwardhan/icones-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sohampatwardhan/icones-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "iconify",
+    "icones",
+    "icons",
+    "svg"
+  ],
+  "bin": {
+    "icones-mcp": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "assets/fonts",
+    "docs/contact-sheet.png",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "smoke": "node --import tsx scripts/smoke.ts",
+    "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@iconify/types": "^2.0.0",
+    "@iconify/utils": "^3.1.7",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@resvg/resvg-js": "^2.6.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/pngjs": "^6.0.5",
+    "pngjs": "^7.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

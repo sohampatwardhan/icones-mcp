@@ -1,0 +1,107 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { PNG } from "pngjs";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+const ICONS = [
+  "lucide:house",
+  "lucide:search",
+  "lucide:heart",
+  "lucide:star",
+  "lucide:sun",
+  "lucide:moon",
+  "lucide:cloud",
+  "lucide:camera",
+  "lucide:bell",
+  "lucide:settings",
+  "lucide:user",
+  "lucide:mail",
+];
+
+interface ToolContent {
+  type: string;
+  text?: string;
+  data?: string;
+  mimeType?: string;
+}
+
+async function main(): Promise<void> {
+  const cli = join(root, "dist/cli.js");
+  if (!existsSync(cli)) {
+    throw new Error("dist/cli.js is missing. Run npm run build first.");
+  }
+
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [cli],
+    cwd: root,
+    stderr: "inherit",
+  });
+  const client = new Client({ name: "icones-mcp-smoke", version: "0.0.0" });
+  await client.connect(transport);
+  try {
+    const listed = await client.listTools();
+    const names = listed.tools.map((tool) => tool.name).sort();
+    const expected = ["get_collection", "get_icon", "list_collections", "preview_icons", "search_icons"];
+    if (names.join() !== expected.join()) {
+      throw new Error(`Unexpected tools: ${names.join(", ")}`);
+    }
+
+    const result = (await client.callTool({
+      name: "preview_icons",
+      arguments: {
+        icons: ICONS,
+        title: "Lucide",
+        columns: 4,
+        size: 72,
+        color: "#1c1917",
+        background: "#f7f6f3",
+      },
+    })) as { isError?: boolean; content?: ToolContent[] };
+
+    if (result.isError) {
+      throw new Error(result.content?.map((item) => item.text).join("\n") || "preview_icons failed");
+    }
+    const image = result.content?.find((item) => item.type === "image");
+    if (image?.mimeType !== "image/png" || !image.data) {
+      throw new Error("preview_icons did not return a PNG image.");
+    }
+    const png = Buffer.from(image.data, "base64");
+    const decoded = PNG.sync.read(png);
+    if (decoded.width < 200 || decoded.height < 150) {
+      throw new Error(`Contact sheet is unexpectedly small (${decoded.width}×${decoded.height}).`);
+    }
+    let dark = 0;
+    for (let index = 0; index < decoded.data.length; index += 4) {
+      const red = decoded.data[index] ?? 255;
+      const alpha = decoded.data[index + 3] ?? 0;
+      if (alpha > 200 && red < 80) dark += 1;
+    }
+    if (dark < 100) {
+      throw new Error("Contact sheet PNG has no visible icon strokes.");
+    }
+
+    const out = process.env.CONTACT_SHEET_OUT ?? join(root, "docs/contact-sheet.png");
+    await mkdir(dirname(out), { recursive: true });
+    await writeFile(out, png);
+    const artifacts = "/opt/cursor/artifacts";
+    await mkdir(artifacts, { recursive: true });
+    await writeFile(join(artifacts, "contact-sheet.png"), png);
+    const text = result.content?.find((item) => item.type === "text")?.text ?? "";
+    process.stderr.write(
+      `contact sheet ${decoded.width}×${decoded.height} (${png.length} bytes) -> ${out}\n${text.split("\n")[0]}\n`,
+    );
+  } finally {
+    await client.close();
+  }
+}
+
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});
