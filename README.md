@@ -1,8 +1,12 @@
-# Iconify MCP
+# @sohampatwardhan/iconify-mcp
 
-MCP server for [Icônes](https://icones.js.org), Anthony Fu's icon explorer. It searches the [Iconify](https://iconify.design) catalog behind Icônes, returns each collection's license, and sends PNG previews back as MCP image content so a model can see the icons.
+[![npm version](https://img.shields.io/npm/v/@sohampatwardhan/iconify-mcp)](https://www.npmjs.com/package/@sohampatwardhan/iconify-mcp)
 
-![Contact sheet of twelve Lucide icons rendered by icones-mcp](docs/contact-sheet.png)
+Unofficial community MCP server for [Iconify](https://iconify.design). It searches the public Iconify catalog, returns each collection's license, and sends PNG previews back as MCP image content so a model can see the icons.
+
+Icon pages link to [Icônes](https://icones.js.org), Anthony Fu's icon browser, which is a front end over the same catalog.
+
+![Contact sheet of twelve Lucide icons rendered by iconify-mcp](docs/contact-sheet.png)
 
 ## Tools
 
@@ -35,11 +39,13 @@ Snippet SVGs keep `currentColor` so they inherit text color. Pass `color` (for e
 
 | URI | Body |
 | --- | --- |
-| `icones://collections` | Collection list with licenses |
-| `icones://collection/{prefix}` | One collection, including up to 200 icon names |
-| `icones://icon/{prefix}/{name}.svg` | SVG |
-| `icones://icon/{prefix}/{name}.png` | 128px PNG on white |
-| `icones://icon/{prefix}/{name}.json` | Metadata and snippets |
+| `iconify://collections` | Collection list with licenses |
+| `iconify://collection/{prefix}` | One collection, including up to 200 icon names |
+| `iconify://icon/{prefix}/{name}.svg` | SVG |
+| `iconify://icon/{prefix}/{name}.png` | 128px PNG on white |
+| `iconify://icon/{prefix}/{name}.json` | Metadata and snippets |
+
+`iconify://` is the scheme to use. The same resources are also registered on `icones://` so older URIs keep working.
 
 Icônes links look like `https://icones.js.org/collection/lucide?icon=lucide:house`.
 
@@ -48,10 +54,10 @@ Icônes links look like `https://icones.js.org/collection/lucide?icon=lucide:hou
 Requires Node.js 20 or newer.
 
 ```bash
-npx -y icones-mcp
+npx -y @sohampatwardhan/iconify-mcp@latest
 ```
 
-The published package's `bin` entry is `icones-mcp`. Stdio is the default. Logs go to stderr so they stay off the JSON-RPC stream.
+The published bin is `iconify-mcp`. `icones-mcp` is a compatibility alias for the same program. Stdio is the default. Logs go to stderr so they stay off the JSON-RPC stream. The MCP server name is `iconify-mcp`.
 
 ### Cursor
 
@@ -60,9 +66,9 @@ Add this to `~/.cursor/mcp.json` or the project's `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "icones": {
+    "iconify": {
       "command": "npx",
-      "args": ["-y", "icones-mcp"]
+      "args": ["-y", "@sohampatwardhan/iconify-mcp@latest"]
     }
   }
 }
@@ -81,7 +87,7 @@ Restart Claude Desktop after saving.
 ### Claude Code
 
 ```bash
-claude mcp add icones -- npx -y icones-mcp
+claude mcp add iconify -- npx -y @sohampatwardhan/iconify-mcp@latest
 ```
 
 ### VS Code
@@ -91,10 +97,10 @@ Create `.vscode/mcp.json`:
 ```json
 {
   "servers": {
-    "icones": {
+    "iconify": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "icones-mcp"]
+      "args": ["-y", "@sohampatwardhan/iconify-mcp@latest"]
     }
   }
 }
@@ -105,7 +111,7 @@ Create `.vscode/mcp.json`:
 HTTP mode is stateless and has no authentication. Bind it to localhost.
 
 ```bash
-npx icones-mcp --http --port 3333
+npx -y @sohampatwardhan/iconify-mcp@latest --http --port 3333
 ```
 
 The MCP endpoint is `http://127.0.0.1:3333/mcp`. A client config looks like:
@@ -113,7 +119,7 @@ The MCP endpoint is `http://127.0.0.1:3333/mcp`. A client config looks like:
 ```json
 {
   "mcpServers": {
-    "icones": {
+    "iconify": {
       "url": "http://127.0.0.1:3333/mcp"
     }
   }
@@ -196,7 +202,7 @@ Contact-sheet labels are set in [Inter](https://github.com/rsms/inter), which is
 
 ## Data source
 
-Icônes is a front end over Iconify. This server uses the public API at `https://api.iconify.design`:
+This server calls the public Iconify API at `https://api.iconify.design`. Icônes (icones.js.org) is the browsing UI those icon links open. The client uses:
 
 - `GET /collections` and `GET /collection`
 - `GET /search`
@@ -226,8 +232,51 @@ npm run smoke
 
 `npm run lint` checks TSDoc comments with `eslint-plugin-tsdoc` (`tsdoc/syntax`). `npm test` includes rendering tests and a live call against the public API. `npm run smoke` starts the built stdio server, calls `preview_icons`, and writes `docs/contact-sheet.png`. CI runs `npm ci`, then lint, typecheck, test, build, and smoke.
 
+`prepublishOnly` compiles TypeScript into `dist/` before the package is packed.
+
+## Releasing
+
+The package on npm is `@sohampatwardhan/iconify-mcp`. Version `0.2.0` is the first version of that scoped package. The old unscoped name `icones-mcp` stays on the registry as a deprecated package.
+
+Trusted publishing can be attached only after the package exists. Publish `0.2.0` once from a maintainer machine, then add the GitHub Actions publisher, then let tags publish later versions.
+
 ```bash
-npm publish
+npm login
+npm ci
+npm publish --access public
 ```
 
-`prepublishOnly` compiles TypeScript into `dist/` before the package is packed.
+Leave `--provenance` off for that local publish. Provenance is added by the GitHub Actions workflow, which has the OIDC token. Do not push a `v0.2.0` tag for this bootstrap. The workflow would try to publish `0.2.0` again.
+
+On npmjs.com, open `@sohampatwardhan/iconify-mcp` → Settings → Trusted publishing (the section is also labeled Trusted Publisher). Choose GitHub Actions and enter:
+
+| Field | Value |
+| --- | --- |
+| Organization or user | `sohampatwardhan` |
+| Repository | `iconify-mcp` |
+| Workflow filename | `release.yml` |
+| Environment name | empty |
+
+The filename is `release.yml` only, not `.github/workflows/release.yml`. Allow direct `npm publish`. A publisher created after 3 September 2026 starts with `npm stage publish` allowed and does not allow `npm publish` until that action is selected. Leave dist-tag management off. The same link can be created with npm CLI 11.15.0 or newer:
+
+```bash
+npm trust github @sohampatwardhan/iconify-mcp \
+  --repo sohampatwardhan/iconify-mcp \
+  --file release.yml \
+  --allow-publish
+```
+
+The first successful publish from that workflow has to happen within two days of saving the publisher, or the configuration expires. Cut the next version for that check:
+
+```bash
+npm version patch   # or minor, or major
+git push --follow-tags
+```
+
+`npm version` writes the version and a `vX.Y.Z` tag. `.github/workflows/release.yml` runs on that tag. It refuses the job when the tag is not `v` plus `package.json` `"version"`, then runs `npm ci`, lint, typecheck, test, build, and smoke, publishes with `npm publish --provenance --access public`, and opens a GitHub Release with generated notes.
+
+Deprecate the old package name after the scoped package is on the registry:
+
+```bash
+npm deprecate icones-mcp "Renamed to @sohampatwardhan/iconify-mcp"
+```

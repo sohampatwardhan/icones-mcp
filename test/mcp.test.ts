@@ -21,7 +21,7 @@ async function connect() {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const server = createIconesServer({ client: backend.client });
   await server.connect(serverTransport);
-  const mcp = new Client({ name: "icones-mcp-test", version: "0.0.0" });
+  const mcp = new Client({ name: "iconify-mcp-test", version: "0.0.0" });
   await mcp.connect(clientTransport);
   return {
     mcp,
@@ -92,25 +92,28 @@ describe("MCP tools and resources", () => {
     }
   });
 
-  it("reads svg and png resources", async () => {
+  it("reads svg and png resources on iconify:// and icones://", async () => {
     const { mcp, close } = await connect();
     try {
-      const svg = await mcp.readResource({ uri: "icones://icon/test/home.svg" });
-      const svgContent = svg.contents[0];
-      expect(svgContent?.mimeType).toBe("image/svg+xml");
-      expect(svgContent && "text" in svgContent ? svgContent.text : "").toContain("<svg");
-      expect(svgContent && "text" in svgContent ? svgContent.text : "").toContain("MIT");
+      expect(mcp.getServerVersion()?.name).toBe("iconify-mcp");
+      for (const scheme of ["iconify", "icones"]) {
+        const svg = await mcp.readResource({ uri: `${scheme}://icon/test/home.svg` });
+        const svgContent = svg.contents[0];
+        expect(svgContent?.mimeType).toBe("image/svg+xml");
+        expect(svgContent && "text" in svgContent ? svgContent.text : "").toContain("<svg");
+        expect(svgContent && "text" in svgContent ? svgContent.text : "").toContain("MIT");
 
-      const png = await mcp.readResource({ uri: "icones://icon/test/home.png" });
-      const pngContent = png.contents[0];
-      expect(pngContent?.mimeType).toBe("image/png");
-      const decoded = decodePng(Buffer.from(pngContent && "blob" in pngContent ? pngContent.blob : "", "base64"));
-      expect(decoded.width).toBe(128);
-      expect(hasColor(decoded, 0x1c, 0x19, 0x17)).toBe(true);
+        const png = await mcp.readResource({ uri: `${scheme}://icon/test/home.png` });
+        const pngContent = png.contents[0];
+        expect(pngContent?.mimeType).toBe("image/png");
+        const decoded = decodePng(Buffer.from(pngContent && "blob" in pngContent ? pngContent.blob : "", "base64"));
+        expect(decoded.width).toBe(128);
+        expect(hasColor(decoded, 0x1c, 0x19, 0x17)).toBe(true);
 
-      const collection = await mcp.readResource({ uri: "icones://collection/test" });
-      const collectionContent = collection.contents[0];
-      expect(collectionContent && "text" in collectionContent ? collectionContent.text : "").toContain('"license"');
+        const collection = await mcp.readResource({ uri: `${scheme}://collection/test` });
+        const collectionContent = collection.contents[0];
+        expect(collectionContent && "text" in collectionContent ? collectionContent.text : "").toContain('"license"');
+      }
     } finally {
       await close();
     }

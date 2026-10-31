@@ -1,27 +1,29 @@
 {
-  "name": "icones-mcp",
-  "version": "0.1.0",
-  "description": "MCP server for Icônes: search, browse, and see Iconify icons",
+  "name": "@sohampatwardhan/iconify-mcp",
+  "version": "0.2.0",
+  "description": "Unofficial community MCP server for Iconify icons, with Icônes links",
   "type": "module",
   "license": "MIT",
   "author": "Soham Patwardhan",
-  "homepage": "https://github.com/sohampatwardhan/icones-mcp",
+  "homepage": "https://github.com/sohampatwardhan/iconify-mcp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sohampatwardhan/icones-mcp.git"
+    "url": "git+https://github.com/sohampatwardhan/iconify-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/sohampatwardhan/icones-mcp/issues"
+    "url": "https://github.com/sohampatwardhan/iconify-mcp/issues"
   },
   "keywords": [
     "mcp",
     "modelcontextprotocol",
     "iconify",
     "icones",
+    "iconify-mcp",
     "icons",
     "svg"
   ],
   "bin": {
+    "iconify-mcp": "./dist/cli.js",
     "icones-mcp": "./dist/cli.js"
   },
   "main": "./dist/index.js",

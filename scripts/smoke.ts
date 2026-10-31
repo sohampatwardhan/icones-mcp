@@ -66,8 +66,8 @@ interface ToolContent {
  * Runs the smoke check and writes the contact sheet.
  *
  * @returns A promise that resolves after the client is closed.
- * @throws Error when the build is missing, the tool list changed, `preview_icons`
- * fails, or the PNG does not look like a sheet of icons.
+ * @throws Error when the build is missing, the server name is not `iconify-mcp`,
+ * the tool list changed, `preview_icons` fails, or the PNG does not look like a sheet of icons.
  *
  * @remarks
  * The output path is `CONTACT_SHEET_OUT`, or `docs/contact-sheet.png` under the
@@ -85,9 +85,13 @@ async function main(): Promise<void> {
     cwd: root,
     stderr: "inherit",
   });
-  const client = new Client({ name: "icones-mcp-smoke", version: "0.0.0" });
+  const client = new Client({ name: "iconify-mcp-smoke", version: "0.0.0" });
   await client.connect(transport);
   try {
+    const server = client.getServerVersion();
+    if (server?.name !== "iconify-mcp") {
+      throw new Error(`Unexpected server name: ${server?.name ?? "missing"}`);
+    }
     const listed = await client.listTools();
     const names = listed.tools.map((tool) => tool.name).sort();
     const expected = ["get_collection", "get_icon", "list_collections", "preview_icons", "search_icons"];

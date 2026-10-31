@@ -42,7 +42,7 @@ export function toolText(summary: string, data: unknown, images: Buffer[] = []):
  */
 export function asToolError(error: unknown): CallToolResult {
   if (!(error instanceof IconifyError)) {
-    console.error("[icones-mcp]", error);
+    console.error("[iconify-mcp]", error);
   }
   const message = error instanceof Error ? error.message : "Unexpected error.";
   return {

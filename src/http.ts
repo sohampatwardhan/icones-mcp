@@ -91,7 +91,7 @@ export function startHttpServer(options: HttpServerOptions = {}): Promise<Runnin
       await handleHttp(req, res, shared);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Request failed.";
-      console.error("[icones-mcp]", error);
+      console.error("[iconify-mcp]", error);
       if (!res.headersSent) {
         res.writeHead(500, { "content-type": "application/json" });
       }

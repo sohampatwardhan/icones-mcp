@@ -40,6 +40,6 @@ export function interFontPath(): string {
     }
   }
   throw new Error(
-    "The bundled Inter font is missing (assets/fonts/Inter-Regular.ttf). Reinstall icones-mcp.",
+    "The bundled Inter font is missing (assets/fonts/Inter-Regular.ttf). Reinstall @sohampatwardhan/iconify-mcp.",
   );
 }
